@@ -16,11 +16,12 @@ public class UnsubscribingMidStreamTest {
     return observable -> {
       BehaviorSubject<T> subject = BehaviorSubject.create();
       Observable<T> source = observable.doOnNext(subject::onNext);
+      //takeUntil will unsubscribe from source when the other it sends a value.
+      //and by merging source.takeUntil(subject) with the subject it will emit the value and so it
+      // will be sent on down the stream, but only after the input Observable has been unsubscribed from.
       return Observable
           .merge(source.takeUntil(subject), subject)
           .take(1);
-      //return source.takeUntil(subject);
-      //source.takeUntil(subject) here will just take untill the first onNext of the source observable
     };
   }
 
