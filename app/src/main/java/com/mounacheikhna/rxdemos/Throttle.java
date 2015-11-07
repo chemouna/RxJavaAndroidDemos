@@ -8,7 +8,7 @@ import rx.schedulers.Schedulers;
 /**
  * Created by cheikhnamouna on 11/5/15.
  */
-public class ThrottleExample {
+public class Throttle {
 
   public static void main(String args[]) {
     // first item emitted in each time window

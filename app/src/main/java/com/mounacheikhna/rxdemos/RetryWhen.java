@@ -4,7 +4,7 @@ import java.util.concurrent.TimeUnit;
 import rx.Observable;
 import rx.Subscriber;
 
-public class RetryWhenTests {
+public class RetryWhen {
 
   public static void main(String[] args) {
 

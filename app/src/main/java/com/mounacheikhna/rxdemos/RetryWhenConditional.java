@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import rx.Observable;
 import rx.Subscriber;
 
-public class RetryWhenTestsConditional {
+public class RetryWhenConditional {
 
   //https://gist.github.com/benjchristensen/fde2e7d2dad2c746a449
   public static void main(String[] args) {
