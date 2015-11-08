@@ -15,13 +15,6 @@ import static junit.framework.Assert.assertEquals;
  */
 public class switchOnNextExample {
 
-  public void example() {
-    Observable.switchOnNext(Observable.interval(100, TimeUnit.MILLISECONDS)
-            .map(i -> Observable.interval(30, TimeUnit.MILLISECONDS).map(i2 -> i)))
-        .take(9)
-        .subscribe(System.out::println);
-  }
-
   @Test public void test() {
     TestSubscriber<Long> tester = new TestSubscriber<>();
     TestScheduler scheduler = Schedulers.test();
