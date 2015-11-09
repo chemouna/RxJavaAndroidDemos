@@ -1,5 +1,6 @@
 package com.mounacheikhna.rxdemos;
 
+import com.github.davidmoten.rx.Transformers;
 import java.util.LinkedList;
 import rx.Observable;
 import rx.Subscriber;
@@ -12,13 +13,6 @@ import rx.subjects.PublishSubject;
 public class TasksRunDemo {
 
   public static void main(String[] args) {
-    /*Observable.concat(Observable.from(new BaseTask[] { new Task1(), new Task2(), new Task3() })
-        .map(baseTask -> {
-          baseTask.run();
-          return baseTask.obs;
-        }))
-        .toBlocking().forEach(System.out::println);*/
-
     final LinkedList<BaseTask> tasks = new LinkedList<>();
     tasks.add(new Task1());
     tasks.add(new Task2());
@@ -46,6 +40,59 @@ public class TasksRunDemo {
     }
 
     void run() {
+      //attempt1();
+      attempt2();
+      //attempt3();
+      //attempt4();
+    }
+
+    private void attempt4() {
+      Observable.from(tasks).flatMap(BaseTask::run)
+        .compose(Transformers.bufferEmissions())
+      .subscribe(new Subscriber<TaskEvent>() {
+        @Override public void onCompleted() {
+          System.out.println(" run onCompleted ");
+        }
+
+        @Override public void onError(Throwable e) {
+          System.out.println(" run onError " + e);
+        }
+
+        @Override public void onNext(TaskEvent taskEvent) {
+          System.out.println(" run onNext w " + taskEvent);
+        }
+      });
+    }
+
+    private void attempt3() {
+      final Observable<TaskEvent> source =
+          Observable.from(tasks).flatMap(BaseTask::run);
+      BehaviorSubject<TaskEvent> subject = BehaviorSubject.create();
+      Observable<TaskEvent> newSource = source.doOnNext(taskEvent -> {
+        if(!TaskEvent.NEW_INTENT.equals(taskEvent)) {
+          subject.onNext(taskEvent);
+        }
+      });
+
+      Observable
+          .merge(newSource.takeUntil(subject), subject)
+        .subscribe(new Subscriber<TaskEvent>() {
+          @Override public void onCompleted() {
+          System.out.println(" run onCompleted ");
+        }
+
+          @Override public void onError(Throwable e) {
+          System.out.println(" run onError " + e);
+        }
+
+          @Override public void onNext(TaskEvent taskEvent) {
+            System.out.println(" run onNext w " + taskEvent);
+          }
+        });
+
+    }
+
+    private void attempt1() {
       tasks.poll().run()
         .compose(takeNextAndUnsubscribe())
         .concatWith(tasks.isEmpty() ? Observable.empty() : tasks.poll().run())
@@ -67,11 +114,40 @@ public class TasksRunDemo {
         });
     }
 
+    private void attempt2() {
+      Observable<TaskEvent> sourceObservable =
+          Observable.from(tasks).flatMap(BaseTask::run);
+
+      /*BehaviorSubject<TaskEvent> subject = BehaviorSubject.create();
+      Observable<TaskEvent> source = sourceObservable.doOnNext(taskEvent -> {
+        if(!TaskEvent.NEW_INTENT.equals(taskEvent) && !TaskEvent.NEXT_VALUE.equals(taskEvent)) {
+          subject.onNext(taskEvent);
+        }
+      });
+      sourceObservable = Observable
+          .merge(source.takeUntil(subject), subject);*/
+      //.take(1);
+
+      sourceObservable
+          //.compose(takeNextAndUnsubscribe())
+          .subscribe(new Subscriber<TaskEvent>() {
+            @Override public void onCompleted() {
+              System.out.println(" run onCompleted ");
+            }
+
+            @Override public void onError(Throwable e) {
+              System.out.println(" run onError " + e);
+            }
+
+            @Override public void onNext(TaskEvent taskEvent) {
+              System.out.println(" run onNext w " + taskEvent);
+            }
+          });
+    }
   }
 
   enum TaskEvent {
-    NEW_INTENT,
-    NEXT_VALUE
+    NEW_INTENT
   }
 
   static abstract class BaseTask {
@@ -95,19 +171,14 @@ public class TasksRunDemo {
   }
 
   static class Task2 extends BaseTask {
-    static int nb_values = 3;
     @Override Observable<TaskEvent> run() {
-      System.out.println("Task2 running w values nb "+ nb_values);
+      System.out.println("Task2 running ");
       try {
         Thread.sleep(200);
-        /*nb_values--;
-        obs.onNext(TaskEvent.NEXT_VALUE);*/
       } catch (Exception e) {
       }
       System.out.println("Task2 completed");
-      //if(nb_values == 0) {
-        obs.onCompleted();
-      //}
+      obs.onCompleted();
       return obs;
     }
   }
