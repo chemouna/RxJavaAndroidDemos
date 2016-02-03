@@ -1,5 +1,6 @@
 package com.mounacheikhna.rxdemos;
 
+import android.text.TextUtils;
 import com.github.davidmoten.rx.Transformers;
 import java.util.LinkedList;
 import rx.Observable;
@@ -25,10 +26,12 @@ public class TasksRunDemo {
     return observable -> {
       BehaviorSubject<T> subject = BehaviorSubject.create();
       Observable<T> source = observable.doOnNext(subject::onNext);
-      return Observable
-          .merge(source.takeUntil(subject), subject)
-          .take(1);
+      return Observable.merge(source.takeUntil(subject), subject).take(1);
     };
+  }
+
+  enum TaskEvent {
+    NEW_INTENT
   }
 
   static class Runner {
@@ -44,12 +47,12 @@ public class TasksRunDemo {
       attempt2();
       //attempt3();
       //attempt4();
+      //attemptWithInputOutput();
     }
 
-    private void attempt4() {
+    private void attemptWithInputOutput() {
       Observable.from(tasks).flatMap(BaseTask::run)
-        .compose(Transformers.bufferEmissions())
-      .subscribe(new Subscriber<TaskEvent>() {
+          .subscribe(new Subscriber<TaskEvent>() {
         @Override public void onCompleted() {
           System.out.println(" run onCompleted ");
         }
@@ -62,61 +65,78 @@ public class TasksRunDemo {
           System.out.println(" run onNext w " + taskEvent);
         }
       });
+      ;
+    }
+
+    private void attempt4() {
+      Observable.from(tasks)
+          .flatMap(BaseTask::run)
+          .compose(Transformers.bufferEmissions())
+          .subscribe(new Subscriber<TaskEvent>() {
+            @Override public void onCompleted() {
+              System.out.println(" run onCompleted ");
+            }
+
+            @Override public void onError(Throwable e) {
+              System.out.println(" run onError " + e);
+            }
+
+            @Override public void onNext(TaskEvent taskEvent) {
+              System.out.println(" run onNext w " + taskEvent);
+            }
+          });
     }
 
     private void attempt3() {
-      final Observable<TaskEvent> source =
-          Observable.from(tasks).flatMap(BaseTask::run);
+      final Observable<TaskEvent> source = Observable.from(tasks).flatMap(BaseTask::run);
       BehaviorSubject<TaskEvent> subject = BehaviorSubject.create();
       Observable<TaskEvent> newSource = source.doOnNext(taskEvent -> {
-        if(!TaskEvent.NEW_INTENT.equals(taskEvent)) {
+        if (!TaskEvent.NEW_INTENT.equals(taskEvent)) {
           subject.onNext(taskEvent);
         }
       });
 
-      Observable
-          .merge(newSource.takeUntil(subject), subject)
-        .subscribe(new Subscriber<TaskEvent>() {
-          @Override public void onCompleted() {
-          System.out.println(" run onCompleted ");
-        }
+      Observable.merge(newSource.takeUntil(subject), subject)
+          .subscribe(new Subscriber<TaskEvent>() {
+            @Override public void onCompleted() {
+              System.out.println(" run onCompleted ");
+            }
 
-          @Override public void onError(Throwable e) {
-          System.out.println(" run onError " + e);
-        }
+            @Override public void onError(Throwable e) {
+              System.out.println(" run onError " + e);
+            }
 
-          @Override public void onNext(TaskEvent taskEvent) {
-            System.out.println(" run onNext w " + taskEvent);
-          }
-        });
-
+            @Override public void onNext(TaskEvent taskEvent) {
+              System.out.println(" run onNext w " + taskEvent);
+            }
+          });
     }
 
     private void attempt1() {
-      tasks.poll().run()
-        .compose(takeNextAndUnsubscribe())
-        .concatWith(tasks.isEmpty() ? Observable.empty() : tasks.poll().run())
-        .takeUntil(taskEvent -> {
-          return tasks.isEmpty();
-        })
-        .subscribe(new Subscriber<TaskEvent>() {
-          @Override public void onCompleted() {
-            System.out.println(" run onCompleted ");
-          }
+      tasks.poll()
+          .run()
+          .compose(takeNextAndUnsubscribe())
+          .concatWith(tasks.isEmpty() ? Observable.empty() : tasks.poll().run())
+          .takeUntil(taskEvent -> {
+            return tasks.isEmpty();
+          })
+          .subscribe(new Subscriber<TaskEvent>() {
+            @Override public void onCompleted() {
+              System.out.println(" run onCompleted ");
+            }
 
-          @Override public void onError(Throwable e) {
-            System.out.println(" run onError "+ e);
-          }
+            @Override public void onError(Throwable e) {
+              System.out.println(" run onError " + e);
+            }
 
-          @Override public void onNext(TaskEvent taskEvent) {
-            System.out.println(" run onNext w "+ taskEvent);
-          }
-        });
+            @Override public void onNext(TaskEvent taskEvent) {
+              System.out.println(" run onNext w " + taskEvent);
+            }
+          });
     }
 
     private void attempt2() {
-      Observable<TaskEvent> sourceObservable =
-          Observable.from(tasks).flatMap(BaseTask::run);
+      Observable<TaskEvent> sourceObservable = Observable.from(tasks).flatMap(BaseTask::run);
 
       /*BehaviorSubject<TaskEvent> subject = BehaviorSubject.create();
       Observable<TaskEvent> source = sourceObservable.doOnNext(taskEvent -> {
@@ -129,7 +149,7 @@ public class TasksRunDemo {
       //.take(1);
 
       sourceObservable
-          //.compose(takeNextAndUnsubscribe())
+          .compose(takeNextAndUnsubscribe())
           .subscribe(new Subscriber<TaskEvent>() {
             @Override public void onCompleted() {
               System.out.println(" run onCompleted ");
@@ -146,12 +166,11 @@ public class TasksRunDemo {
     }
   }
 
-  enum TaskEvent {
-    NEW_INTENT
-  }
-
   static abstract class BaseTask {
     public PublishSubject<TaskEvent> obs = PublishSubject.create();
+    String input;
+    String output;
+
     abstract Observable<TaskEvent> run();
   }
 
@@ -172,11 +191,16 @@ public class TasksRunDemo {
 
   static class Task2 extends BaseTask {
     @Override Observable<TaskEvent> run() {
+      if (TextUtils.isEmpty(input)) {
+        throw new IllegalArgumentException("I can't run without an input ");
+      }
       System.out.println("Task2 running ");
       try {
         Thread.sleep(200);
       } catch (Exception e) {
+        e.printStackTrace();
       }
+      output = "Output task #2";
       System.out.println("Task2 completed");
       obs.onCompleted();
       return obs;
@@ -185,11 +209,16 @@ public class TasksRunDemo {
 
   static class Task3 extends BaseTask {
     @Override Observable<TaskEvent> run() {
+      if (TextUtils.isEmpty(input)) {
+        throw new IllegalArgumentException("I can't run without an input ");
+      }
       System.out.println("Task3 running ");
       try {
         Thread.sleep(400);
       } catch (Exception e) {
+          e.printStackTrace();
       }
+      output = "Output task #3";
       System.out.println("Task3 completed");
       obs.onCompleted();
       return obs;
